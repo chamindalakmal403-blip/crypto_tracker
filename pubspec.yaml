@@ -5,6 +5,13 @@ version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
+# pubspec.yaml එකේ environment කොටසට පල්ලෙහායින් මේක දාන්න
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+# අලුතින්ම මේ පේළි දෙක එකතු කරන්න:
+flutter:
+  uses-material-design: true
 
 dependencies:
   flutter:
