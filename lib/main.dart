@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 void main() {
-  runApp(const CryptoTrackerApp());
+  runApp(const BuySellApp());
 }
 
-class CryptoTrackerApp extends StatelessWidget {
-  const CryptoTrackerApp({super.key});
+class BuySellApp extends StatelessWidget {
+  const BuySellApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
+      title: 'අපේ කඩේ - Buy & Sell',
+      theme: ThemeData(
+        primarySwatch: Colors.teal,
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+      ),
       home: const MainNavigationScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -28,41 +30,37 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
-
-  static double liveBtcPrice = 0.0;
-  static double liveEthPrice = 0.0;
-
-  static double myBtcAmount = 0.0;
-  static double myBtcBuyPrice = 0.0;
   
-  static double myEthAmount = 0.0;
-  static double myEthBuyPrice = 0.0;
+  // සාම්පල් විකුණන බඩු ලැයිස්තුවක්
+  final List<Map<String, String>> _products = [
+    {
+      'title': 'iPhone 13 Pro Max',
+      'price': 'රු. 215,000',
+      'location': 'කොළඹ',
+      'phone': '0771234567',
+      'desc': 'හොඳම තත්වයේ පවතී. කිසිදු දෝෂයක් නොමැත. බැටරි හෙල්ත් 85%.'
+    },
+    {
+      'title': 'Bajaj Pulsar 150cc',
+      'price': 'රු. 480,000',
+      'location': 'කුරුණෑගල',
+      'phone': '0719876543',
+      'desc': '2018 වර්ෂය, පළමු අයිතිකරු, ලියකියවිලි සියල්ල සම්පූර්ණයි.'
+    },
+  ];
+
+  void _addNewProduct(Map<String, String> newProduct) {
+    setState(() {
+      _products.insert(0, newProduct);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
-      DashboardScreen(
-        onPricesUpdated: (btc, eth) {
-          liveBtcPrice = btc;
-          liveEthPrice = eth;
-        },
-      ),
-      PortfolioScreen(
-        btcAmount: myBtcAmount,
-        btcBuyPrice: myBtcBuyPrice,
-        ethAmount: myEthAmount,
-        ethBuyPrice: myEthBuyPrice,
-        liveBtcPrice: liveBtcPrice,
-        liveEthPrice: liveEthPrice,
-        onUpdate: (btcAmt, btcBuy, ethAmt, ethBuy) {
-          setState(() {
-            myBtcAmount = btcAmt;
-            myBtcBuyPrice = btcBuy;
-            myEthAmount = ethAmt;
-            myEthBuyPrice = ethBuy;
-          });
-        },
-      ),
+      HomeScreen(products: _products),
+      AddPostScreen(onAdd: _addNewProduct),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
@@ -74,295 +72,213 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             _selectedIndex = index;
           });
         },
-        selectedItemColor: Colors.amber,
-        unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Portfolio'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ප්‍රධාන පිටුව'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'දැන්වීමක් දාන්න'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'ගิණුම'),
         ],
       ),
     );
   }
 }
 
-class DashboardScreen extends StatefulWidget {
-  final Function(double, double) onPricesUpdated;
-  const DashboardScreen({super.key, required this.onPricesUpdated});
-
-  @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  String btcPriceStr = "Loading...";
-  String btcChange = "0.0%";
-  bool btcPositive = true;
-
-  String ethPriceStr = "Loading...";
-  String ethChange = "0.0%";
-  bool ethPositive = true;
-
-  @override
-  void initState() {
-    super.initState();
-    fetchCryptoPrices();
-  }
-
-  Future<void> fetchCryptoPrices() async {
-    final url = Uri.parse(
-        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum&price_change_percentage=24h');
-
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        double btcPrice = 0.0;
-        double ethPrice = 0.0;
-
-        setState(() {
-          for (var coin in data) {
-            if (coin['id'] == 'bitcoin') {
-              btcPrice = (coin['current_price'] as num).toDouble();
-              btcPriceStr = "\$" + btcPrice.toStringAsFixed(2);
-              double change = (coin['price_change_percentage_24h'] ?? 0.0 as num).toDouble();
-              btcChange = change.toStringAsFixed(2) + "%";
-              btcPositive = change >= 0;
-            } else if (coin['id'] == 'ethereum') {
-              ethPrice = (coin['current_price'] as num).toDouble();
-              ethPriceStr = "\$" + ethPrice.toStringAsFixed(2);
-              double change = (coin['price_change_percentage_24h'] ?? 0.0 as num).toDouble();
-              ethChange = change.toStringAsFixed(2) + "%";
-              ethPositive = change >= 0;
-            }
-          }
-        });
-        widget.onPricesUpdated(btcPrice, ethPrice);
-      }
-    } catch (e) {
-      setState(() {
-        btcPriceStr = "Error";
-        ethPriceStr = "Error";
-      });
-    }
-  }
+// 1. ප්‍රධාන පිටුව (Home Screen)
+class HomeScreen extends StatelessWidget {
+  final List<Map<String, String>> products;
+  const HomeScreen({super.key, required this.products});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Crypto Tracker Live', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber)),
-        centerTitle: true,
-        backgroundColor: Colors.black,
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: fetchCryptoPrices)],
+        title: const Text('අපේ කඩේ - බඩු විකුණමු', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
       ),
-      backgroundColor: const Color(0xFF111111),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Live Markets', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 15),
-            cryptoCard('Bitcoin', 'BTC', btcPriceStr, btcChange, Colors.orange, btcPositive),
-            const SizedBox(height: 12),
-            cryptoCard('Ethereum', 'ETH', ethPriceStr, ethChange, Colors.purple, ethPositive),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget cryptoCard(String name, String symbol, String price, String change, Color iconColor, bool isPositive) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15)),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundColor: iconColor, child: Text(symbol[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(symbol, style: const TextStyle(color: Colors.grey)),
-              ],
+      body: products.isEmpty
+          ? const Center(child: Text('තවම කිසිදු දැන්වීමක් නොමැත.'))
+          : ListView.builder(
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final item = products[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: ListTile(
+                    leading: Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.teal.shade100,
+                      child: const Icon(Icons.image, color: Colors.teal),
+                    ),
+                    title: Text(item['title']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    subtitle: Text('${item['price']} | ${item['location']}'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductDetailsScreen(product: item),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(price, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text(change, style: TextStyle(color: isPositive ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
 
-class PortfolioScreen extends StatefulWidget {
-  final double btcAmount;
-  final double btcBuyPrice;
-  final double ethAmount;
-  final double ethBuyPrice;
-  final double liveBtcPrice;
-  final double liveEthPrice;
-  final Function(double, double, double, double) onUpdate;
-
-  const PortfolioScreen({
-    super.key,
-    required this.btcAmount,
-    required this.btcBuyPrice,
-    required this.ethAmount,
-    required this.ethBuyPrice,
-    required this.liveBtcPrice,
-    required this.liveEthPrice,
-    required this.onUpdate,
-  });
-
-  @override
-  State<PortfolioScreen> createState() => _PortfolioScreenState();
-}
-
-class _PortfolioScreenState extends State<PortfolioScreen> {
-  final _btcAmountController = TextEditingController();
-  final _btcBuyPriceController = TextEditingController();
-  final _ethAmountController = TextEditingController();
-  final _ethBuyPriceController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _btcAmountController.text = widget.btcAmount > 0 ? widget.btcAmount.toString() : '';
-    _btcBuyPriceController.text = widget.btcBuyPrice > 0 ? widget.btcBuyPrice.toString() : '';
-    _ethAmountController.text = widget.ethAmount > 0 ? widget.ethAmount.toString() : '';
-    _ethBuyPriceController.text = widget.ethBuyPrice > 0 ? widget.ethBuyPrice.toString() : '';
-  }
-
-  void _saveData() {
-    double btcAmt = double.tryParse(_btcAmountController.text) ?? 0.0;
-    double btcBuy = double.tryParse(_btcBuyPriceController.text) ?? 0.0;
-    double ethAmt = double.tryParse(_ethAmountController.text) ?? 0.0;
-    double ethBuy = double.tryParse(_ethBuyPriceController.text) ?? 0.0;
-
-    widget.onUpdate(btcAmt, btcBuy, ethAmt, ethBuy);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Portfolio Updated!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
-    );
-  }
+// 2. විස්තර පෙනෙන පිටුව (Details Screen)
+class ProductDetailsScreen extends StatelessWidget {
+  final Map<String, String> product;
+  const ProductDetailsScreen({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
-    double totalInvestment = (widget.btcAmount * widget.btcBuyPrice) + (widget.ethAmount * widget.ethBuyPrice);
-    double currentPortfolioValue = (widget.btcAmount * widget.liveBtcPrice) + (widget.ethAmount * widget.liveEthPrice);
-    double profit = currentPortfolioValue - totalInvestment;
-    double profitPercentage = totalInvestment > 0 ? (profit / totalInvestment) * 100 : 0.0;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Portfolio', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber)),
-        centerTitle: true,
-        backgroundColor: Colors.black,
-      ),
-      backgroundColor: const Color(0xFF111111),
-      // මෙතනට physics එකතු කරලා scroll ප්‍රශ්නය සම්පූර්ණයෙන්ම විසඳුවා
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+      appBar: AppBar(title: Text(product['title']!), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Colors.amber, Colors.orange]),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Current Balance', style: TextStyle(color: Colors.black54, fontSize: 14, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  Text('\$' + currentPortfolioValue.toStringAsFixed(2), style: const TextStyle(color: Colors.black, fontSize: 28, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Text('Profit / Loss: ', style: TextStyle(color: Colors.black45, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          (profit >= 0 ? '+' : '') + '\$' + profit.toStringAsFixed(2) + ' (${profitPercentage.toStringAsFixed(2)}%)',
-                          style: TextStyle(color: profit >= 0 ? Colors.green[900] : Colors.red[900], fontSize: 14, fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  )
-                ],
-              ),
+              height: 200,
+              color: Colors.teal.shade50,
+              child: const Icon(Icons.image, size: 100, color: Colors.teal),
             ),
-            const SizedBox(height: 15),
-            const Text('Update Assets', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
+            Text(product['price']!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal)),
+            const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: TextField(controller: _btcAmountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'BTC Amount', border: OutlineInputBorder()))),
-                const SizedBox(width: 10),
-                Expanded(child: TextField(controller: _btcBuyPriceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'BTC Buy (\$)', border: OutlineInputBorder()))),
+                const Icon(Icons.location_on, color: Colors.grey, size: 18),
+                const SizedBox(width: 4),
+                Text(product['location']!, style: const TextStyle(fontSize: 16, color: Colors.grey)),
               ],
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: TextField(controller: _ethAmountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ETH Amount', border: OutlineInputBorder()))),
-                const SizedBox(width: 10),
-                Expanded(child: TextField(controller: _ethBuyPriceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ETH Buy (\$)', border: OutlineInputBorder()))),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const Divider(height: 30),
+            const Text('විස්තරය:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(product['desc']!, style: const TextStyle(fontSize: 16)),
+            const Spacer(),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveData,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, padding: const EdgeInsets.all(12)),
-                child: const Text('Save Portfolio', style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.bold)),
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('දුරකථන අංකය: ${product['phone']} වෙත ඇමතුමක් ලබා ගනී...')),
+                  );
+                },
+                icon: const Icon(Icons.phone),
+                label: const Text('විකුණන්නා අමතන්න', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ),
-            const SizedBox(height: 15),
-            const Text('Your Assets Current Value', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            assetRow('Bitcoin', 'BTC', widget.btcAmount.toString(), '\$' + (widget.btcAmount * widget.liveBtcPrice).toStringAsFixed(2), Colors.orange),
-            const SizedBox(height: 10),
-            assetRow('Ethereum', 'ETH', widget.ethAmount.toString(), '\$' + (widget.ethAmount * widget.liveEthPrice).toStringAsFixed(2), Colors.purple),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget assetRow(String name, String symbol, String amount, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundColor: color.withOpacity(0.2), child: Text(symbol[0], style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                Text('$amount $symbol', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
+// 3. දැන්වීමක් එකතු කරන පිටුව (Add Post Screen)
+class AddPostScreen extends StatefulWidget {
+  final Function(Map<String, String>) onAdd;
+  const AddPostScreen({super.key, required this.onAdd});
+
+  @override
+  State<AddPostScreen> createState() => _AddPostScreenState();
+}
+
+class _AddPostScreenState extends State<AddPostScreen> {
+  final _titleController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _descController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('දැන්වීමක් ඇතුළත් කරන්න'), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'භාණ්ඩයේ නම (Title)')),
+              TextField(controller: _priceController, decoration: const InputDecoration(labelText: 'මිල (Price) (උදා: රු. 500)')),
+              TextField(controller: _locationController, decoration: const InputDecoration(labelText: 'නගරය (Location)')),
+              TextField(controller: _phoneController, decoration: const InputDecoration(labelText: 'දුරකථන අංකය (Phone)')),
+              TextField(controller: _descController, maxLines: 3, decoration: const InputDecoration(labelText: 'භාණ්ඩය පිළිබඳ විස්තරය (Description)')),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 45,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (_titleController.text.isEmpty || _priceController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('කරුණාකර නම සහ මිල ඇතුළත් කරන්න!')),
+                      );
+                      return;
+                    }
+                    
+                    widget.onAdd({
+                      'title': _titleController.text,
+                      'price': _priceController.text,
+                      'location': _locationController.text.isEmpty ? 'ලංකාව' : _locationController.text,
+                      'phone': _phoneController.text,
+                      'desc': _descController.text,
+                    });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('දැන්වීම සාර්ථකව එකතු කරන ලදී!')),
+                    );
+
+                    _titleController.clear();
+                    _priceController.clear();
+                    _locationController.clear();
+                    _phoneController.clear();
+                    _descController.clear();
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                  child: const Text('දැන්වීම පළ කරන්න', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
-          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+// 4. ප්‍රොෆයිල් පිටුව (Profile Screen)
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('මගේ ගිණුම'), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.account_circle, size: 100, color: Colors.teal),
+            SizedBox(height: 10),
+            Text('ඔබේ නම මෙතනට පෙනේ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('user@email.com', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
       ),
     );
   }
